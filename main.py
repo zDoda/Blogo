@@ -41,9 +41,10 @@ def wait_for_run_completion(thread_id, run_id, timeout=300):
 def get_internal_links(thread_id, blog_post_idea):
     # Generate outline
     get_request = f'''
-    Choose 7 internal links {blog_post_idea}. For example for blogs about
-    coding languages choose python, C++, and Rust blog posts and for blogs post
-    about career help provide resume, interview prep, and job information links
+    Choose 7 internal links for {blog_post_idea} from internallinks.txt. For
+    example for blogs about coding languages choose python, C++, and Rust blog
+    posts and for blogs post about career help provide resume, interview prep,
+    and job information links
     '''
     client.beta.threads.messages.create(
         thread_id=thread_id,
@@ -85,7 +86,9 @@ def process_blog_post(thread_id, blog_post_idea):
         (m.content for m in messages.data if m.role == "assistant"),
         None
     )
-
+    message_json = messages.model_dump()
+    response = message_json['data'][0]['content'][0]['text']['value']
+    outline = response
     # Initialize article variable
     article = None
 
@@ -111,7 +114,9 @@ def process_blog_post(thread_id, blog_post_idea):
             (m.content for m in messages.data if m.role == "assistant"),
             None
         )
-
+        message_json = messages.model_dump()
+        response = message_json['data'][0]['content'][0]['text']['value']
+        article = response
     return outline, article
 
 
