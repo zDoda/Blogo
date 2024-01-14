@@ -1,5 +1,7 @@
 from openai_api import upload_file, process_content_plan, create_image, client
-
+from PIL import Image
+import io
+import requests
 # Upload your files
 internal_links_file_id = upload_file(
     'internallinks.txt',
@@ -23,11 +25,11 @@ assistant = client.beta.assistants.create(
     ''',
     tools=[{"type": "retrieval"}],
 )
-
+response = requests.get(create_image(
+    'comic book style, software engineer brainstorming ideas',
+    '1792x1024'
+))
 # Example usage
-print(create_image(
-        'comic book style, software engineer brainstorming ideas',
-        '1792x1024'
-    )
-)
+image = Image.open(io.BytesIO(response.content))
+image.save('./image.webp')
 # process_content_plan(assistant)
