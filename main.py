@@ -25,11 +25,13 @@ assistant = client.beta.assistants.create(
     ''',
     tools=[{"type": "retrieval"}],
 )
+
 response = requests.get(create_image(
     'comic book style, software engineer brainstorming ideas',
     '1792x1024'
 ))
 # Example usage
+
 image = Image.open(io.BytesIO(response.content))
 image.save('./image.webp')
 # process_content_plan(assistant)
