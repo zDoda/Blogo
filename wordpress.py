@@ -8,11 +8,11 @@ username = os.environ.get('WP_USER_NAME')
 password = os.environ.get('WP_PASS_WORD')
 
 
-def wp_create_post(article, title, slug, meta, image_src, wp_url):
+def wp_create_post(article, title, slug, meta, image_src, config):
     # The data for your new post
     post = {
         'title': title,
-        'status': 'draft',
+        'status': config['status'],
         'content': article,
         'featured_media': image_src,
         'slug': slug, 'meta': {
@@ -23,7 +23,7 @@ def wp_create_post(article, title, slug, meta, image_src, wp_url):
     }
 
     # Endpoint for creating a new post
-    endpoint = wp_url + '/wp-json/wp/v2/posts'
+    endpoint = config['url'] + '/wp-json/wp/v2/posts'
 
     # Make the POST request
     response = requests.post(endpoint, auth=HTTPBasicAuth(username, password), json=post)
@@ -68,6 +68,8 @@ def image_to_wordpress(image_src, wp_url):
             print("Failed to upload image.")
             print("Status Code:", upload_response.status_code)
             print("Response:", upload_response.text)
+    else:
+        return "", 0
 
 
 # image_to_wordpress('./output_files/ee2abfb6-01d1-4ddf-a3ef-415193ffc5ce.webp')

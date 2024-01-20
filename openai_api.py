@@ -1,11 +1,10 @@
-import time
 import csv
+import time
 import requests
 import json
 import os
 import openai
 import io
-import subprocess
 import uuid
 import random
 import wordpress
@@ -66,9 +65,7 @@ def create_image(prompt, image_size="1792x1024"):
         if response.status_code == 200:
             unique_id = uuid.uuid4()
             image = Image.open(io.BytesIO(response.content))
-            image.save(f'./{unique_id}.png')
-            subprocess.run(f'cwebp {unique_id}.png -o output_files/{unique_id}.webp', shell=True)
-            subprocess.run(f'rm {unique_id}.png', shell=True)
+            image.save(f'output_files/{unique_id}.webp')
         else:
             print("Failed to create image: " + response.text)
 
@@ -77,10 +74,13 @@ def create_image(prompt, image_size="1792x1024"):
         print("Failed to create image: " + response.text)
 
 
-def chat_completion(prompt: str) -> str:
+def chat_completion(prompt: str, config) -> str:
+    model = "gpt-3.5-turbo-1106"
+    if config['gpt']:
+        model = config['gpt']
     try:
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo-1106",
+            model=f"{model}",
             messages=[
                 {"role": "system", "content": 'You are a helpful assistant'},
                 {"role": "user", "content": prompt}
@@ -92,12 +92,12 @@ def chat_completion(prompt: str) -> str:
         return f"Error: {e}"
 
 
-def image_gen(blog_post_idea):
+def image_gen(blog_post_idea, config):
     image_prompt_prompt = f'''
     Write a image prompt that relates with {blog_post_idea}, has
     a {random.choice(art_styles)}
     '''
-    image_prompt = chat_completion(image_prompt_prompt)
+    image_prompt = chat_completion(image_prompt_prompt, config)
     image_src = create_image(image_prompt)
     return image_src
 
@@ -143,7 +143,7 @@ def wait_for_run_completion(thread_id, run_id, timeout=300):
 
 
 # Blog Post Writer
-def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, wp_url):
+def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, config):
     # Generate outline
     outline_request = f'''
     Create an outline for an article about {blog_post_idea}.
@@ -207,12 +207,14 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, wp
 
             image_src = ""
             if header_idx == 0:
-                image_src = image_gen(blog_post_idea)
-                featured_image, featured_id = wordpress.image_to_wordpress(image_src, wp_url)
-            # image_id = 0
-            # if image_src and header_idx != 0:
-            #     hosted_src, image_id = wordpress.image_to_wordpress(image_src)
-            #     para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
+                image_src = image_gen(blog_post_idea, config)
+                featured_image, featured_id = wordpress.image_to_wordpress(image_src, config['url'])
+            image_id = 0
+            if header_idx != 0 and (header_idx+1 % config['numimages'] == 0):
+                image_src = image_gen(blog_post_idea, config)
+                if image_src:
+                    hosted_src, image_id = wordpress.image_to_wordpress(image_src, config['url'])
+                    para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
 
             article += para
 
@@ -235,7 +237,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, wp
     '''
 
     # Retrieve article from the thread
-    json_str = chat_completion(meta_request)
+    json_str = chat_completion(meta_request, config)
     print(json_str[json_str.find('{'):json_str.rfind('}')+1])
     json_obj = json.loads(json_str[json_str.find('{'):json_str.rfind('}')+1])
     html = markdown.markdown(article)
@@ -247,14 +249,14 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, wp
         slug,
         json_obj['meta'],
         featured_id,
-        wp_url
+        config
     )
     return outline, article
 
 
 # Takes your TA map csv and writes to another csv
-def process_content_plan(outline_ass, writer_ass, input_file, wp_url):
-    input_file = os.path.abspath(input_file)
+def process_content_plan(outline_ass, writer_ass, config):
+    input_file = os.path.abspath(config['input_file'])
 
     # Create a single thread for processing the content plan
     thread_id = client.beta.threads.create().id
@@ -272,5 +274,5 @@ def process_content_plan(outline_ass, writer_ass, input_file, wp_url):
                 outline_ass.id,
                 writer_ass.id,
                 row['Slug'],
-                wp_url
+                config
             )

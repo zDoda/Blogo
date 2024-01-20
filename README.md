@@ -32,8 +32,14 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
 - Better Content Writer
     - Async/Parallelize the writer
     - Enable/Disable images
+    - gen images every n headers
+    - fix '### header' in paragraphes
+    - Add Categories and tags to post
+    - Add better logging for errors
+    - Add a double check on JSON parse that we generated
 
 - CLI app
+    - gen images every n headers option
 
 - Internal linking script
     - Python script, no AI

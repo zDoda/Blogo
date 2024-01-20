@@ -6,12 +6,58 @@ wordpress_url = ""
 
 
 def main():
-    parser = argparse.ArgumentParser(description="BLOGO csv2wordpress")
-    parser.add_argument('input', help='Input file or parameter')
-    parser.add_argument('-u', '--url', help='URL of the WordPress site')
+    parser = argparse.ArgumentParser(
+        description="BLOGO a CLI Tool to turn your Topical Authority SEO maps into fully written articles that are uploaded to your site",
+        epilog="Example usage: main.py topical_authority_map.csv https://wordpress-site.com",
+        formatter_class=argparse.HelpFormatter
+    )
+    parser.add_argument(
+        'input_file',
+        type=str,
+        help='Input file or parameter\n'
+    )
+    parser.add_argument(
+        'url',
+        type=str,
+        help='URL of your WordPress site\n'
+    )
+    parser.add_argument(
+        '-n', '--numimages',
+        type=int,
+        choices=[0, 1, 2, 3],
+        default=2,
+        help='1 generated image per 0, 1, 2, or 3 <h2> headings.\n'
+    )
+    parser.add_argument(
+        '-s', '--status',
+        type=str,
+        choices=['draft', 'publish'],
+        default='draft',
+        help='Status of blog post upon upload.\n'
+    )
+    parser.add_argument(
+        '-g', '--gpt',
+        type=str,
+        choices=['gpt-3.5-turbo-1106', 'gpt-4-1106-preview'],
+        help='''Choose what GPT Model to use. Defaults -> outline=gpt-4-1106-preview
+                                                       and content_writer=gpt-3.5-turbo-1106\n'''
+    )
+    parser.add_argument(
+        '-o', '--output',
+        action='store_true',
+        help='Enabling local .md output file in the blog_posts dir\n'
+    )
+
     args = parser.parse_args()
 
-    wordpress_url = args.url
+    config = {}
+
+    config['input_file'] = args.input_file
+    config['url'] = args.url
+    config['numimages'] = args.numimages
+    config['status'] = args.status
+    config['gpt'] = args.gpt
+    config['output'] = args.output
 
     # Upload your files
     example_post_file_id = openai_api.upload_file(
@@ -24,10 +70,14 @@ def main():
         'assistants'
     )
 
+    model = "gpt-4-1106-preview"
+    if config['gpt']:
+        model = config['gpt']
+
     # Create an Assistant
     outline_assistant = openai_api.client.beta.assistants.create(
         name="Content Creation Assistant",
-        model="gpt-4-1106-preview",
+        model=f"{model}",
         instructions='''
             Read outline.md - You will be given a blog post idea,
             then you will write an Outline to a blog post about the topic.
@@ -43,7 +93,7 @@ def main():
 
     content_writer_assistant = openai_api.client.beta.assistants.create(
         name="Content Creation Assistant",
-        model="gpt-3.5-turbo-1106",
+        model=f"{model}",
         instructions='''
             You are a Software Engineer blog writer, you talk about many topics
             in software engineering. Be opinionated, concise, and descriptive.
@@ -66,8 +116,7 @@ def main():
     openai_api.process_content_plan(
         outline_assistant,
         content_writer_assistant,
-        args.input,
-        wordpress_url
+        config
     )
 
 
