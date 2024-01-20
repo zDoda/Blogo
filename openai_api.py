@@ -1,16 +1,42 @@
 import time
 import csv
 import requests
+import json
 import os
 import openai
 from PIL import Image
 import io
 import subprocess
 import uuid
+import random
+import wordpress
+import markdown
 from tqdm import tqdm
 
 # Initialize the OpenAI client
 client = openai.OpenAI()
+
+art_styles = [
+    "Comic book",
+    "Anime",
+    "Pop art",
+    "Art Deco",
+    "Gothic",
+    "Minimalism",
+    "Futurism",
+    "Expressionism",
+    "Dadaism",
+    "Fauvism",
+    "Neoclassicism",
+    "Steampunk",
+    "Pixel art",
+    "Watercolor",
+    "Charcoal sketch",
+    "Pastel",
+    "Graffiti",
+    "Manga",
+    "Ukiyo-e (Japanese woodblock print)"
+]
 
 
 # Function to upload a file to OpenAI
@@ -75,7 +101,12 @@ def wait_for_run_completion(thread_id, run_id, timeout=300):
 
 
 # Blog Post Writer
-def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, inter_id):
+def process_blog_post(thread_id,
+                      blog_post_idea,
+                      outline_id,
+                      writer_id,
+                      inter_id,
+                      slug):
     # Generate outline
     # links = get_internal_links(thread_id, blog_post_idea, inter_id)
     outline_request = f'''
@@ -96,19 +127,21 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, inter_id
         assistant_id=outline_id
     )
     wait_for_run_completion(thread_id, outline_run.id)
+
     # Retrieve outline from the thread
     messages = client.beta.threads.messages.list(thread_id=thread_id)
     message_json = messages.model_dump()
     outline = message_json['data'][0]['content'][0]['text']['value']
     # Initialize article variable
     article = None
+    featured_image = ""
 
     # Generate article
     if outline:
         article = ""
         indexes = find_substring_indexes(outline, "\n## ")
         headers = list_headers(indexes, outline)
-        for header in tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'"):
+        for header_idx, header in enumerate(tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'")):
             article_request = f'''
             Write a detailed section for the header '{header}' in the outline:
             \n{outline}. use markdown formatting and ensure to use tables and
@@ -128,9 +161,40 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, inter_id
             messages = client.beta.threads.messages.list(thread_id=thread_id)
             message_json = messages.model_dump()
             para = message_json['data'][0]['content'][0]['text']['value']
+            # Parsing out gpt comments below
             idx = para.find("---")
             para = para[:idx]
+
+            image_src = image_gen(blog_post_idea)
+            if image_src and header_idx != 0:
+                hosted_src = wordpress.image_to_wordpress(image_src)
+                para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
+            if image_src and header_idx == 0:
+                featured_image = wordpress.image_to_wordpress(image_src)
             article += para
+
+    meta_request = f"""
+    Give the Title and Meta description for an article using the info below.\n
+    Blog Idea: {blog_post_idea}\nOutline:\n{outline}. Return as json.\n
+    Example:
+    {
+        'title': 'My Awesome Title under 59 chars',
+        'meta': 'meta description that is under 160 chars'
+    }
+    """
+
+    # Retrieve article from the thread
+    json_str = chat_completion(meta_request)
+    print(json_str)
+    json_obj = json.loads(json_str[json_str.find('{'):json_str.rfind('}')])
+    html = markdown.markdown(article)
+    wordpress.wp_create_post(
+        html,
+        json_obj['meta'],
+        slug,
+        json_obj['title'],
+        featured_image
+    )
     return outline, article
 
 
@@ -155,7 +219,8 @@ def process_content_plan(internal_links_ass, outline_ass, writer_ass):
                 blog_post_idea,
                 outline_ass.id,
                 writer_ass.id,
-                internal_links_ass.id
+                internal_links_ass.id,
+                row['Slug']
             )
             if outline and article:
                 row.update({
@@ -204,8 +269,33 @@ def create_image(prompt, image_size="1792x1024"):
             subprocess.run(f'cwebp {unique_id}.png -o output_files/{unique_id}.webp', shell=True)
             subprocess.run(f'rm {unique_id}.png', shell=True)
         else:
-            raise Exception("Failed to create image: " + response.text)
+            print("Failed to create image: " + response.text)
 
-        return os.path.abspath('output_files/{unique_id}.webp')
+        return os.path.abspath(f'output_files/{unique_id}.webp')
     else:
-        raise Exception("Failed to create image: " + response.text)
+        print("Failed to create image: " + response.text)
+
+
+def chat_completion(prompt: str) -> str:
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",
+            messages=[
+                {"role": "system", "content": 'You are a helpful assistant'},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def image_gen(blog_post_idea):
+    image_prompt_prompt = f'''
+    Write a image prompt that relates with {blog_post_idea}, has
+    a {random.choice(art_styles)}
+    '''
+    image_prompt = chat_completion(image_prompt_prompt)
+    image_src = create_image(image_prompt)
+    return image_src

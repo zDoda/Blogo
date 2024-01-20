@@ -1,5 +1,5 @@
 import openai_api
-import uuid
+# import uuid
 
 # Upload your files
 internal_links_file_id = openai_api.upload_file(
@@ -74,20 +74,6 @@ openai_api.add_file_to_asssistant(
     content_writer_assistant.id
 )
 
-# thread_id = openai_api.client.beta.threads.create().id
-# outline, article = openai_api.process_blog_post(
-#     thread_id,
-#     "How to get started in AI/ML programming",
-#     outline_assistant.id,
-#     content_writer_assistant.id,
-#     internal_links_assistant.id
-# )
-#
-# unique_id = uuid.uuid4()
-# with open(f'./blog_posts/{unique_id}_blog_post.md', 'w') as file:
-#     file.write(f'Outline:\n{outline}\n\nArticle:\n{article}')
-
-# print(create_image('create a comicbook picture of a guy coding'))
 openai_api.process_content_plan(
     internal_links_assistant,
     outline_assistant,

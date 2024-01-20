@@ -138,3 +138,5 @@ pytest_cache/
 *.tmp
 *~
 
+# Output files
+output_files/

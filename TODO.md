@@ -1,19 +1,11 @@
-### TODO
+# TODO
 
 - Wordpress Integration
-    - Upload post
     - schedule post to publish
     - have custom tables, quotes, and other wp blocks
-    - upload media 
-
-- Better Content writer
-    - Better outlines (Outline Assistant, gpt-4)
-    - Have assistant write paragraph by paragraph (Writer Assistant, gpt-3.5)
-    - embed media
 
 - Internal linking script
     - Python script, no AI
-    - maybe AI for now???
 
 - Research Agent (wikipedia, Amazon, and top articles)
     - Need more research
