@@ -4,13 +4,13 @@ import requests
 import json
 import os
 import openai
-from PIL import Image
 import io
 import subprocess
 import uuid
 import random
 import wordpress
 import markdown
+from PIL import Image
 from tqdm import tqdm
 
 # Initialize the OpenAI client
@@ -39,205 +39,6 @@ art_styles = [
 ]
 
 
-# Function to upload a file to OpenAI
-def upload_file(file_path, purpose):
-    with open(file_path, "rb") as file:
-        response = client.files.create(file=file, purpose=purpose)
-    return response.id
-
-
-def add_file_to_asssistant(file_id, assistant_id):
-    client.beta.assistants.files.create(
-      assistant_id=assistant_id,
-      file_id=file_id
-    )
-
-
-def find_substring_indexes(main_string, substring):
-    return [i for i in range(len(main_string)) if main_string.startswith(substring, i)]
-
-
-def list_headers(indexes, main_string):
-    headers = []
-    for idx in indexes:
-        _temp = main_string[idx+1:].find("\n")
-        headers.append(main_string[idx+1:_temp+(idx+1)])
-    return headers
-
-
-# Checks to see if an OpenAI thread run is in the "completed" status
-def wait_for_run_completion(thread_id, run_id, timeout=300):
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        run_status = client.beta.threads.runs.retrieve(
-            thread_id=thread_id,
-            run_id=run_id
-        )
-        if run_status.status == 'completed':
-            return run_status
-        time.sleep(10)
-    raise TimeoutError("Run did not complete within the specified timeout.")
-
-
-# def get_internal_links(thread_id, blog_post_idea, assistant_id):
-#     # Generate outline
-#     get_request = f'''
-#     Choose internal links for {blog_post_idea} from internallinks.txt'''
-#     client.beta.threads.messages.create(
-#         thread_id=thread_id,
-#         role="user",
-#         content=get_request
-#     )
-#     get_request = client.beta.threads.runs.create(
-#         thread_id=thread_id,
-#         assistant_id=assistant_id
-#     )
-#     wait_for_run_completion(thread_id, get_request.id)
-#     # Retrieve outline from the thread
-#     messages = client.beta.threads.messages.list(thread_id=thread_id)
-#     message_json = messages.model_dump()
-#     links = message_json['data'][0]['content'][0]['text']['value']
-#     return links
-
-
-# Blog Post Writer
-def process_blog_post(thread_id,
-                      blog_post_idea,
-                      outline_id,
-                      writer_id,
-                      inter_id,
-                      slug):
-    # Generate outline
-    # links = get_internal_links(thread_id, blog_post_idea, inter_id)
-    outline_request = f'''
-    Create an outline for an article about {blog_post_idea}.
-    Outlines will have 1 'h1' or '#' header. Then write the Outline with the
-    'h2' or '##' followed by 1-4 'h3' or '###' subheadings
-    Example:# Title of blog.....\n\n## 1st h2\n\t### h3 subheading in the h2
-    \n\t### another h3\n\n## 2nd h3\n\n and so on...
-    '''
-    client.beta.threads.messages.create(
-        thread_id=thread_id,
-        role="user",
-        content=outline_request
-    )
-    print(f"Creating outline for {blog_post_idea}")
-    outline_run = client.beta.threads.runs.create(
-        thread_id=thread_id,
-        assistant_id=outline_id
-    )
-    wait_for_run_completion(thread_id, outline_run.id)
-
-    # Retrieve outline from the thread
-    messages = client.beta.threads.messages.list(thread_id=thread_id)
-    message_json = messages.model_dump()
-    outline = message_json['data'][0]['content'][0]['text']['value']
-    # Initialize article variable
-    article = None
-    featured_image = ""
-
-    # Generate article
-    if outline:
-        article = ""
-        indexes = find_substring_indexes(outline, "\n## ")
-        headers = list_headers(indexes, outline)
-        for header_idx, header in enumerate(tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'")):
-            article_request = f'''
-            Write a detailed section for the header '{header}' in the outline:
-            \n{outline}. use markdown formatting and ensure to use tables and
-            lists to add to formatting.
-            '''
-            client.beta.threads.messages.create(
-                thread_id=thread_id,
-                role="user",
-                content=article_request
-            )
-            article_run = client.beta.threads.runs.create(
-                thread_id=thread_id,
-                assistant_id=writer_id
-            )
-            wait_for_run_completion(thread_id, article_run.id)
-            # Retrieve article from the thread
-            messages = client.beta.threads.messages.list(thread_id=thread_id)
-            message_json = messages.model_dump()
-            para = message_json['data'][0]['content'][0]['text']['value']
-            # Parsing out gpt comments below
-            idx = para.find("---")
-            para = para[:idx]
-
-            image_src = image_gen(blog_post_idea)
-            if image_src and header_idx != 0:
-                hosted_src = wordpress.image_to_wordpress(image_src)
-                para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
-            if image_src and header_idx == 0:
-                featured_image = wordpress.image_to_wordpress(image_src)
-            article += para
-
-    meta_request = f"""
-    Give the Title and Meta description for an article using the info below.\n
-    Blog Idea: {blog_post_idea}\nOutline:\n{outline}. Return as json.\n
-    Example:
-    {
-        'title': 'My Awesome Title under 59 chars',
-        'meta': 'meta description that is under 160 chars'
-    }
-    """
-
-    # Retrieve article from the thread
-    json_str = chat_completion(meta_request)
-    print(json_str)
-    json_obj = json.loads(json_str[json_str.find('{'):json_str.rfind('}')])
-    html = markdown.markdown(article)
-    wordpress.wp_create_post(
-        html,
-        json_obj['meta'],
-        slug,
-        json_obj['title'],
-        featured_image
-    )
-    return outline, article
-
-
-# Takes your TA map csv and writes to another csv
-def process_content_plan(internal_links_ass, outline_ass, writer_ass):
-    input_file = 'assistant_files/Topical_Authority_Map_Programming_Careers.csv'
-    output_file = 'output_files/processed_content_plan.csv'
-    processed_rows = []
-
-    # Create a single thread for processing the content plan
-    thread_id = client.beta.threads.create().id
-
-    with open(input_file, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in tqdm(reader, desc="Processing Blog Posts"):
-            if row.get('Processed', 'No') == 'Yes':
-                continue
-
-            blog_post_idea = row['Topic']
-            outline, article = process_blog_post(
-                thread_id,
-                blog_post_idea,
-                outline_ass.id,
-                writer_ass.id,
-                internal_links_ass.id,
-                row['Slug']
-            )
-            if outline and article:
-                row.update({
-                    'Blog Outline': outline,
-                    'Article': article,
-                    'Processed': 'Yes'
-                })
-                processed_rows.append(row)
-
-    # Write the processed rows to the output file
-    with open(output_file, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=processed_rows[0].keys())
-        writer.writeheader()
-        writer.writerows(processed_rows)
-
-
-# TODO: Use Dalle to create an image
 def create_image(prompt, image_size="1792x1024"):
     """
     Create an image using DALL-E 3 API.
@@ -299,3 +100,177 @@ def image_gen(blog_post_idea):
     image_prompt = chat_completion(image_prompt_prompt)
     image_src = create_image(image_prompt)
     return image_src
+
+
+# Function to upload a file to OpenAI
+def upload_file(file_path, purpose):
+    with open(file_path, "rb") as file:
+        response = client.files.create(file=file, purpose=purpose)
+    return response.id
+
+
+def add_file_to_asssistant(file_id, assistant_id):
+    client.beta.assistants.files.create(
+      assistant_id=assistant_id,
+      file_id=file_id
+    )
+
+
+def find_substring_indexes(main_string, substring):
+    return [i for i in range(len(main_string)) if main_string.startswith(substring, i)]
+
+
+def list_headers(indexes, main_string):
+    headers = []
+    for idx in indexes:
+        _temp = main_string[idx+1:].find("\n")
+        headers.append(main_string[idx+1:_temp+(idx+1)])
+    return headers
+
+
+# Checks to see if an OpenAI thread run is in the "completed" status
+def wait_for_run_completion(thread_id, run_id, timeout=300):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        run_status = client.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run_id
+        )
+        if run_status.status == 'completed':
+            return run_status
+        time.sleep(10)
+    raise TimeoutError("Run did not complete within the specified timeout.")
+
+
+# Blog Post Writer
+def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, wp_url):
+    # Generate outline
+    outline_request = f'''
+    Create an outline for an article about {blog_post_idea}.
+    Outlines will have 1 'h1' or '#' header. Then write the Outline with the
+    'h2' or '##' followed by 1-4 'h3' or '###' subheadings
+    Example:# Title of blog.....\n\n## 1st h2\n\t### h3 subheading in the h2
+    \n\t### another h3\n\n## 2nd h3\n\n and so on...
+    '''
+    client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=outline_request
+    )
+    print(f"Creating outline for {blog_post_idea}")
+    outline_run = client.beta.threads.runs.create(
+        thread_id=thread_id,
+        assistant_id=outline_id
+    )
+    wait_for_run_completion(thread_id, outline_run.id)
+
+    # Retrieve outline from the thread
+    messages = client.beta.threads.messages.list(thread_id=thread_id)
+    message_json = messages.model_dump()
+    outline = message_json['data'][0]['content'][0]['text']['value']
+
+    # Initialize article variable
+    article = None
+    featured_image = ""
+    featured_id = 0
+
+    # Generate article
+    if outline:
+        article = ""
+        indexes = find_substring_indexes(outline, "\n## ")
+        headers = list_headers(indexes, outline)
+        for header_idx, header in enumerate(tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'")):
+            article_request = f'''
+            Write a detailed section for the header '{header}' in the outline:
+            \n{outline}. use markdown formatting and ensure to use tables and
+            lists to add to formatting.
+            '''
+            client.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=article_request
+            )
+            article_run = client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=writer_id
+            )
+            wait_for_run_completion(thread_id, article_run.id)
+
+            # Retrieve article from the thread
+            messages = client.beta.threads.messages.list(thread_id=thread_id)
+            message_json = messages.model_dump()
+            para = message_json['data'][0]['content'][0]['text']['value']
+
+            # Parsing out gpt comments below
+            idx = para.find("---")
+            para = para[:idx]
+
+            image_src = ""
+            if header_idx == 0:
+                image_src = image_gen(blog_post_idea)
+                featured_image, featured_id = wordpress.image_to_wordpress(image_src, wp_url)
+            # image_id = 0
+            # if image_src and header_idx != 0:
+            #     hosted_src, image_id = wordpress.image_to_wordpress(image_src)
+            #     para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
+
+            article += para
+
+    # Getting data for post
+    meta_request = f'''
+    Give the Title and Meta description for an article using the info below.\n
+    Blog Idea: {blog_post_idea}\n Outline:\n{outline}. Return as json.\n
+    Example JSON:
+    {{
+        "title": "My Awesome Title under 59 chars",
+        "meta": "meta description that is under 160 chars"
+    }}
+    Example Titles:
+    Software Engineers with ADHD: Thriving in the Tech Industry
+    Break Into Tech w/ an Associate’s Degree in Computer Science
+    Software Engineer Locations: Top Cities for Tech Jobs in 2024
+    Example Meta Descriptions:
+    As a software engineer with ADHD, you know that your job requires intense
+    focus, attention to detail, and the ability to manage complex tasks.
+    '''
+
+    # Retrieve article from the thread
+    json_str = chat_completion(meta_request)
+    print(json_str[json_str.find('{'):json_str.rfind('}')+1])
+    json_obj = json.loads(json_str[json_str.find('{'):json_str.rfind('}')+1])
+    html = markdown.markdown(article)
+
+    # Upload to Github
+    wordpress.wp_create_post(
+        html,
+        json_obj['title'],
+        slug,
+        json_obj['meta'],
+        featured_id,
+        wp_url
+    )
+    return outline, article
+
+
+# Takes your TA map csv and writes to another csv
+def process_content_plan(outline_ass, writer_ass, input_file, wp_url):
+    input_file = os.path.abspath(input_file)
+
+    # Create a single thread for processing the content plan
+    thread_id = client.beta.threads.create().id
+
+    with open(input_file, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in tqdm(reader, desc="Processing Blog Posts"):
+            if row.get('Processed', 'No') == 'Yes':
+                continue
+
+            blog_post_idea = row['Topic']
+            outline, article = process_blog_post(
+                thread_id,
+                blog_post_idea,
+                outline_ass.id,
+                writer_ass.id,
+                row['Slug'],
+                wp_url
+            )
