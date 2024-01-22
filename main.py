@@ -31,7 +31,7 @@ def main():
     parser.add_argument(
         '-s', '--status',
         type=str,
-        choices=['draft', 'publish'],
+        choices=['draft', 'publish', 'future'],
         default='draft',
         help='Status of blog post upon upload.\n'
     )
@@ -58,6 +58,7 @@ def main():
     config['status'] = args.status
     config['gpt'] = args.gpt
     config['output'] = args.output
+    config['time'] = None
 
     # Upload your files
     example_post_file_id = openai_api.upload_file(

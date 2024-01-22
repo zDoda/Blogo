@@ -1,7 +1,8 @@
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from requests.auth import HTTPBasicAuth
+import pytz
 
 # Your WordPress site and credentials
 username = os.environ.get('WP_USER_NAME')
@@ -10,17 +11,37 @@ password = os.environ.get('WP_PASS_WORD')
 
 def wp_create_post(article, title, slug, meta, image_src, config):
     # The data for your new post
-    post = {
-        'title': title,
-        'status': config['status'],
-        'content': article,
-        'featured_media': image_src,
-        'slug': slug, 'meta': {
-            'aioseop_meta_description': meta
-        },
-        'author': 1,
-        'excerpt': meta,
-    }
+    if config['status']:
+        if config['time'] is None:
+            future_date = datetime.now(pytz.utc) + timedelta(hours=1)
+        else:
+            future_date = config['time']
+
+        future_date_iso = future_date.isoformat()
+        post = {
+            'title': title,
+            'status': config['status'],
+            'content': article,
+            'featured_media': image_src,
+            'slug': slug, 'meta': {
+                'aioseop_meta_description': meta
+            },
+            'author': 1,
+            'excerpt': meta,
+            'date_gmt': future_date_iso
+        }
+    else:
+        post = {
+            'title': title,
+            'status': config['status'],
+            'content': article,
+            'featured_media': image_src,
+            'slug': slug, 'meta': {
+                'aioseop_meta_description': meta
+            },
+            'author': 1,
+            'excerpt': meta
+        }
 
     # Endpoint for creating a new post
     endpoint = config['url'] + '/wp-json/wp/v2/posts'
@@ -31,6 +52,7 @@ def wp_create_post(article, title, slug, meta, image_src, config):
     # Check the response
     if response.status_code == 201:
         print("Post created successfully: " + response.json()['link'])
+        return future_date + timedelta(hours=1)
     else:
         print("Failed to create post: " + response.text)
 

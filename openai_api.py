@@ -128,6 +128,18 @@ def list_headers(indexes, main_string):
     return headers
 
 
+def check_headers(article):
+    h2_indexes = find_substring_indexes(article, "## ")
+    for idx in h2_indexes:
+        if article[idx-1] != '\n' and article[idx-1] != '#':
+            article = article[:idx] + '\n\n' + article[idx:]
+    h3_indexes = find_substring_indexes(article, "### ")
+    for idx in h3_indexes:
+        if article[idx-1] != '\n' and article[idx-1] != '#':
+            article = article[:idx] + '\n\n' + article[idx:]
+    return article
+
+
 # Checks to see if an OpenAI thread run is in the "completed" status
 def wait_for_run_completion(thread_id, run_id, timeout=300):
     start_time = time.time()
@@ -236,6 +248,9 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     focus, attention to detail, and the ability to manage complex tasks.
     '''
 
+    # Fixing GPT header bugs
+    article = check_headers(article)
+
     # Retrieve article from the thread
     json_str = chat_completion(meta_request, config)
     print(json_str[json_str.find('{'):json_str.rfind('}')+1])
@@ -243,7 +258,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     html = markdown.markdown(article)
 
     # Upload to Github
-    wordpress.wp_create_post(
+    config['time'] = wordpress.wp_create_post(
         html,
         json_obj['title'],
         slug,
@@ -251,7 +266,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
         featured_id,
         config
     )
-    return outline, article
+    return outline, article, config
 
 
 # Takes your TA map csv and writes to another csv
@@ -268,7 +283,7 @@ def process_content_plan(outline_ass, writer_ass, config):
                 continue
 
             blog_post_idea = row['Topic']
-            outline, article = process_blog_post(
+            outline, article, config = process_blog_post(
                 thread_id,
                 blog_post_idea,
                 outline_ass.id,

@@ -1,0 +1,10 @@
+openai
+requests
+Pillow
+tqdm
+markdown
+pytz
+beautifulsoup4
+html2text
+asyncio
+aiohttp
