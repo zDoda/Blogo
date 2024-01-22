@@ -194,7 +194,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
         for header_idx, header in enumerate(tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'")):
             article_request = f'''
             Write a detailed section for the header '{header}' in the outline:
-            \n{outline}. use markdown formatting and ensure to use tables and
+            \n{outline}. use markdown formatting and ensure to use
             lists to add to formatting.
             '''
             client.beta.threads.messages.create(
@@ -217,16 +217,15 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
             idx = para.find("---")
             para = para[:idx]
 
+            image_id = 0
             image_src = ""
             if header_idx == 0:
                 image_src = image_gen(blog_post_idea, config)
                 featured_image, featured_id = wordpress.image_to_wordpress(image_src, config['url'])
-            image_id = 0
-            if header_idx != 0 and (header_idx+1 % config['numimages'] == 0):
+            elif header_idx % config['numimages'] == 0:
                 image_src = image_gen(blog_post_idea, config)
-                if image_src:
-                    hosted_src, image_id = wordpress.image_to_wordpress(image_src, config['url'])
-                    para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
+                hosted_src, image_id = wordpress.image_to_wordpress(image_src, config['url'])
+                para = f"\n![{blog_post_idea}-{uuid.uuid4()}]({hosted_src})\n{para}"
 
             article += para
 

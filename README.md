@@ -39,17 +39,10 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
                ->Create Title, Meta, and other blog items
                 
 ## TODO
-
-- Wordpress Integration
-    - schedule post to publish
-
-- Better Content Writer
-    - Async/Parallelize the writer (Writer can't be an OpenAI Assistant, since threads can only have one run at a time)
-
-- Internal linking script
-    - Python script, no AI
-
-- Database (PostegreSQL)
+1. Fix No JSON bug
+2. Internal linking script -> https://jonathanboshoff.com/automate-internal-linking-with-python/
+3. Ollama & Stability AI Integration
+4. Database (PostegreSQL, to store Internal Linking Values)
 
 ## Future plans
 - Frontend: Htmx? Svelte?
@@ -58,7 +51,6 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
 - Research Agent (wikipedia, Amazon, and top articles)
     - Need more research
 - Start collecting good blog urls to hopefully train my own AI
-- Media Queue
  
 ### First Run
 Processing Blog Posts: 14it [1:04:47, 277.68s/it] 1hr for 14 items w/ pictures
