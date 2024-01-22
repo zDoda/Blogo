@@ -10,7 +10,25 @@ pip install -r requirements.txt
 ```
 ### How to use - TODO (less hardcoding in python files)
 ```bash
-python main.py
+usage: main.py [-h] [-n {0,1,2,3}] [-s {draft,publish}] [-g {gpt-3.5-turbo-1106,gpt-4-1106-preview}] [-o] input_file url
+
+BLOGO a CLI Tool to turn your Topical Authority SEO maps into fully written articles that are uploaded to your site
+
+positional arguments:
+  input_file            Input file or parameter
+  url                   URL of your WordPress site
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n {0,1,2,3}, --numimages {0,1,2,3}
+                        1 generated image per 0, 1, 2, or 3 <h2> headings.
+  -s {draft,publish}, --status {draft,publish}
+                        Status of blog post upon upload.
+  -g {gpt-3.5-turbo-1106,gpt-4-1106-preview}, --gpt {gpt-3.5-turbo-1106,gpt-4-1106-preview}
+                        Choose what GPT Model to use. Defaults -> outline=gpt-4-1106-preview and content_writer=gpt-3.5-turbo-1106
+  -o, --output          Enabling local .md output file in the blog_posts dir
+
+Example usage: main.py topical_authority_map.csv https://wordpress-site.com
 ```
 
 ## *Content Pipeline*
@@ -30,16 +48,11 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
     - have custom tables, quotes, and other wp blocks
 
 - Better Content Writer
-    - Async/Parallelize the writer
-    - Enable/Disable images
-    - gen images every n headers
+    - Async/Parallelize the writer (Writer can't be an OpenAI Assistant, since threads can only have one run at a time)
     - fix '### header' in paragraphes
     - Add Categories and tags to post
     - Add better logging for errors
     - Add a double check on JSON parse that we generated
-
-- CLI app
-    - gen images every n headers option
 
 - Internal linking script
     - Python script, no AI
