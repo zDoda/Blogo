@@ -1,13 +1,12 @@
 import csv
 import time
 import requests
-import json
 import os
 import openai
 import io
 import uuid
 import random
-import wordpress
+from src import wordpress
 import markdown
 from PIL import Image
 from tqdm import tqdm
@@ -18,23 +17,12 @@ client = openai.OpenAI()
 art_styles = [
     "Comic book",
     "Anime",
-    "Pop art",
-    "Art Deco",
-    "Gothic",
     "Minimalism",
     "Futurism",
-    "Expressionism",
-    "Dadaism",
-    "Fauvism",
-    "Neoclassicism",
     "Steampunk",
-    "Pixel art",
     "Watercolor",
-    "Charcoal sketch",
     "Pastel",
-    "Graffiti",
     "Manga",
-    "Ukiyo-e (Japanese woodblock print)"
 ]
 
 
@@ -230,18 +218,19 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
             article += para
 
     # Getting data for post
-    meta_request = f'''
-    Give the Title and Meta description for an article using the info below.\n
-    Blog Idea: {blog_post_idea}\n Outline:\n{outline}. Return as json.\n
-    Example JSON:
-    {{
-        "title": "My Awesome Title under 59 chars",
-        "meta": "meta description that is under 160 chars"
-    }}
+    title_request = f'''
+    Give the Title description for an article using the info below.\n
+    Blog Idea: {blog_post_idea}\n Outline:\n{outline}.\n
+    The Title under 59 chars",
     Example Titles:
     Software Engineers with ADHD: Thriving in the Tech Industry
     Break Into Tech w/ an Associate’s Degree in Computer Science
     Software Engineer Locations: Top Cities for Tech Jobs in 2024
+    '''
+    meta_request = f'''
+    Give theMeta description for an article using the info below.\n
+    Blog Idea: {blog_post_idea}\n Outline:\n{outline}.\n
+    The meta description that is under 160 chars
     Example Meta Descriptions:
     As a software engineer with ADHD, you know that your job requires intense
     focus, attention to detail, and the ability to manage complex tasks.
@@ -249,22 +238,21 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
 
     # Fixing GPT header bugs
     article = check_headers(article)
-
-    # Retrieve article from the thread
-    json_str = chat_completion(meta_request, config)
-    print(json_str[json_str.find('{'):json_str.rfind('}')+1])
-    json_obj = json.loads(json_str[json_str.find('{'):json_str.rfind('}')+1])
     html = markdown.markdown(article)
 
+    # Retrieve article from the thread
+    meta_str = chat_completion(meta_request, config)
+    title_str = chat_completion(title_request, config)
     # Upload to Github
     config['time'] = wordpress.wp_create_post(
         html,
-        json_obj['title'],
+        title_str,
         slug,
-        json_obj['meta'],
+        meta_str,
         featured_id,
         config
     )
+
     return outline, article, config
 
 

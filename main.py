@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import openai_api
+from src import openai_api
 import argparse
 
 wordpress_url = ""
