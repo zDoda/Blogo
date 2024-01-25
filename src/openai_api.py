@@ -6,7 +6,7 @@ import openai
 import io
 import uuid
 import random
-from src import wordpress
+import wordpress
 import markdown
 from PIL import Image
 from tqdm import tqdm
