@@ -129,7 +129,7 @@ def check_headers(article):
 
 
 # Checks to see if an OpenAI thread run is in the "completed" status
-def wait_for_run_completion(thread_id, run_id, timeout=300):
+def wait_for_run_completion(thread_id, run_id, timeout=600):
     start_time = time.time()
     while time.time() - start_time < timeout:
         run_status = client.beta.threads.runs.retrieve(
@@ -182,8 +182,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
         for header_idx, header in enumerate(tqdm(headers, desc=f"Writing Headers for '{blog_post_idea}'")):
             article_request = f'''
             Write a detailed section for the header '{header}' in the outline:
-            \n{outline}. use markdown formatting and ensure to use
-            lists to add to formatting.
+            \n{outline}. use markdown formatting.
             '''
             client.beta.threads.messages.create(
                 thread_id=thread_id,
@@ -278,3 +277,5 @@ def process_content_plan(outline_ass, writer_ass, config):
                 row['Slug'],
                 config
             )
+            with open(f'{uuid.uuid4()}-blog_post.html', 'w') as file:
+                file.write(f'{outline}\n\n{article}')

@@ -39,10 +39,9 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
                ->Create Title, Meta, and other blog items
                 
 ## TODO
-2. Ollama & Stability AI Integration
-3. Async the Images?
-4. Database (PostegreSQL, to store Internal Linking Values)
-5. Internal linking script -> https://jonathanboshoff.com/automate-internal-linking-with-python/
+1. Ollama & Stability AI Integration
+2. Database (PostegreSQL, to store Internal Linking Values)
+3. Internal linking script -> https://jonathanboshoff.com/automate-internal-linking-with-python/
 
 ## Future plans
 - Frontend: Htmx? Svelte?

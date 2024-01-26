@@ -77,7 +77,7 @@ def main():
 
     # Create an Assistant
     outline_assistant = openai_api.client.beta.assistants.create(
-        name="Content Creation Assistant",
+        name="Outline Assistant",
         model=f"{model}",
         instructions='''
             Read outline.md - You will be given a blog post idea,
@@ -92,18 +92,19 @@ def main():
         outline_assistant.id
     )
 
+    model = "gpt-3.5-turbo-1106"
+    if config['gpt']:
+        model = config['gpt']
+
     content_writer_assistant = openai_api.client.beta.assistants.create(
         name="Content Creation Assistant",
         model=f"{model}",
         instructions='''
             You are a Software Engineer blog writer, you talk about many topics
             in software engineering. Be opinionated, concise, and descriptive.
-            Read example_blog.md - Using that as a guideline, you will recieve
-            a blog outline and internal links that are relevant to that topic.
+            Read example_blog.md -
             Write one section at a time. Include a key concepts table at the
-            beginning of the blog after a short interduction paragraph, Before
-            each 'h2' or '##' section "<Insert Picture Here>", if there are no
-            more headers from the outline, write "<blog_post_done>"
+            beginning of the blog after a short interduction paragraph"
         ''',
         tools=[{"type": "retrieval"}],
     )
