@@ -6,7 +6,7 @@ import openai
 import io
 import uuid
 import random
-from src import wordpress
+import wordpress
 import markdown
 from PIL import Image
 from tqdm import tqdm
@@ -225,6 +225,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     Software Engineers with ADHD: Thriving in the Tech Industry
     Break Into Tech w/ an Associate’s Degree in Computer Science
     Software Engineer Locations: Top Cities for Tech Jobs in 2024
+    Respond with just the title. No quotation marks.
     '''
     meta_request = f'''
     Give theMeta description for an article using the info below.\n
@@ -233,6 +234,7 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     Example Meta Descriptions:
     As a software engineer with ADHD, you know that your job requires intense
     focus, attention to detail, and the ability to manage complex tasks.
+    Respond with just the meta description. No quatation marks.
     '''
 
     # Fixing GPT header bugs
@@ -240,17 +242,20 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     html = markdown.markdown(article)
 
     # Retrieve article from the thread
-    meta_str = chat_completion(meta_request, config)
+    # meta_str = chat_completion(meta_request, config)
     title_str = chat_completion(title_request, config)
-    # Upload to Github
-    config['time'] = wordpress.wp_create_post(
-        html,
-        title_str,
-        slug,
-        meta_str,
-        featured_id,
-        config
-    )
+    with open(f'blog_posts/{title_str}.html', 'w') as file:
+        file.write(html)
+
+    # Upload to Wordpress
+    # config['time'] = wordpress.wp_create_post(
+    #     html,
+    #     title_str,
+    #     slug,
+    #     meta_str,
+    #     featured_id,
+    #     config
+    # )
 
     return outline, article, config
 
@@ -277,5 +282,3 @@ def process_content_plan(outline_ass, writer_ass, config):
                 row['Slug'],
                 config
             )
-            with open(f'{uuid.uuid4()}-blog_post.html', 'w') as file:
-                file.write(f'{outline}\n\n{article}')
