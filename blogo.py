@@ -18,8 +18,7 @@ def main():
     )
     parser.add_argument(
         'url',
-        type=str,
-        help='URL of your WordPress site\n'
+        type=str, help='URL of your WordPress site\n'
     )
     parser.add_argument(
         '-n', '--numimages',
@@ -38,8 +37,8 @@ def main():
     parser.add_argument(
         '-g', '--gpt',
         type=str,
-        choices=['gpt-3.5-turbo-1106', 'gpt-4-1106-preview'],
-        help='''Choose what GPT Model to use. Defaults -> outline=gpt-4-1106-preview
+        choices=['gpt-3.5-turbo-1106', 'gpt-4o'],
+        help='''Choose what GPT Model to use. Defaults -> outline=gpt-4o
                                                        and content_writer=gpt-3.5-turbo-1106\n'''
     )
     parser.add_argument(
@@ -71,7 +70,13 @@ def main():
         'assistants'
     )
 
-    model = "gpt-4-1106-preview"
+    outline_vs_id = openai_api.create_vector_store("outline")
+    example_vs_id = openai_api.create_vector_store("example")
+
+    openai_api.add_file_to_vs(outline_file_id, outline_vs_id)
+    openai_api.add_file_to_vs(example_post_file_id, example_vs_id)
+
+    model = "gpt-4o"
     if config['gpt']:
         model = config['gpt']
 
@@ -85,11 +90,8 @@ def main():
             There should be 5-7 'h2' or '##' headers, include a Frequently
             Asked Questions section at the end of the outline.
         ''',
-        tools=[{"type": "retrieval"}],
-    )
-    openai_api.add_file_to_asssistant(
-        outline_file_id,
-        outline_assistant.id
+        tools=[{"type": "file_search"}],
+        tool_resources={"file_search": {"vector_store_ids": [outline_vs_id]}},
     )
 
     model = "gpt-3.5-turbo-1106"
@@ -106,12 +108,8 @@ def main():
             Write one section at a time. Include a key concepts table at the
             beginning of the blog after a short interduction paragraph"
         ''',
-        tools=[{"type": "retrieval"}],
-    )
-
-    openai_api.add_file_to_asssistant(
-        example_post_file_id,
-        content_writer_assistant.id
+        tools=[{"type": "file_search"}],
+        tool_resources={"file_search": {"vector_store_ids": [example_vs_id]}},
     )
 
     # Your main logic here

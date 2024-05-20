@@ -42,6 +42,9 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
 1. Ollama & Stability AI Integration
 2. Database (PostegreSQL, to store Internal Linking Values)
 3. Internal linking script -> https://jonathanboshoff.com/automate-internal-linking-with-python/
+4. Groq API Integration
+5. Koala.sh API Integration
+6. Parallel compute
 
 ## Future plans
 - Frontend: Htmx? Svelte?

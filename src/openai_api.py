@@ -6,7 +6,7 @@ import openai
 import io
 import uuid
 import random
-import wordpress
+from src import wordpress
 import markdown
 from PIL import Image
 from tqdm import tqdm
@@ -90,6 +90,10 @@ def image_gen(blog_post_idea, config):
     return image_src
 
 
+# Vector Store
+def create_vector_store(vs_name):
+    return client.beta.vector_stores.create(name=vs_name).id
+
 # Function to upload a file to OpenAI
 def upload_file(file_path, purpose):
     with open(file_path, "rb") as file:
@@ -97,9 +101,9 @@ def upload_file(file_path, purpose):
     return response.id
 
 
-def add_file_to_asssistant(file_id, assistant_id):
-    client.beta.assistants.files.create(
-      assistant_id=assistant_id,
+def add_file_to_vs(file_id, vs_id):
+    client.beta.vector_stores.files.create(
+      vector_store_id=vs_id,
       file_id=file_id
     )
 
@@ -129,7 +133,7 @@ def check_headers(article):
 
 
 # Checks to see if an OpenAI thread run is in the "completed" status
-def wait_for_run_completion(thread_id, run_id, timeout=600):
+def wait_for_run_completion(thread_id, run_id, timeout=900):
     start_time = time.time()
     while time.time() - start_time < timeout:
         run_status = client.beta.threads.runs.retrieve(
@@ -242,20 +246,20 @@ def process_blog_post(thread_id, blog_post_idea, outline_id, writer_id, slug, co
     html = markdown.markdown(article)
 
     # Retrieve article from the thread
-    # meta_str = chat_completion(meta_request, config)
+    meta_str = chat_completion(meta_request, config)
     title_str = chat_completion(title_request, config)
     with open(f'blog_posts/{title_str}.html', 'w') as file:
         file.write(html)
 
     # Upload to Wordpress
-    # config['time'] = wordpress.wp_create_post(
-    #     html,
-    #     title_str,
-    #     slug,
-    #     meta_str,
-    #     featured_id,
-    #     config
-    # )
+    config['time'] = wordpress.wp_create_post(
+        html,
+        title_str,
+        slug,
+        meta_str,
+        featured_id,
+        config
+    )
 
     return outline, article, config
 
@@ -270,9 +274,6 @@ def process_content_plan(outline_ass, writer_ass, config):
     with open(input_file, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in tqdm(reader, desc="Processing Blog Posts"):
-            if row.get('Processed', 'No') == 'Yes':
-                continue
-
             blog_post_idea = row['Topic']
             outline, article, config = process_blog_post(
                 thread_id,
