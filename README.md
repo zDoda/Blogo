@@ -45,6 +45,7 @@ User input(csv)->Research Agent->Outline Writer->Content Writer(parallelized by 
 4. Groq API Integration
 5. Koala.sh API Integration
 6. Parallel compute
+7. Redesign API architecture (using the same functions (w/ same functionality) for each of the different LLM APIs
 
 ## Future plans
 - Frontend: Htmx? Svelte?
