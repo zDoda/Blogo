@@ -4,7 +4,7 @@ import openai_api
 blog_idea = 'coding for a living'
 
 result = ollama.generate(
- :  model='llama2',
+    model='llama2',
     prompt=f'''
 You are a Blog Outline Assisant that creates all of the headers for a blog.
 Create a header outline for a blog post about {blog_idea}.
@@ -68,8 +68,7 @@ for header in response:
     prompt_str=f'''
         You are a Software Engineer blog writer, you talk about many topics
         in software engineering. Be opinionated, concise, and descriptive.
-        write h2 header {header} in a blog about {blog_idea}. Write just that
-        section of the blog
+        write the section labeled {header} in a blog about {blog_idea}
     '''
     body = ollama.generate(
         model='llama2',
